@@ -42,6 +42,9 @@ def test_state_and_settings_hide_keys(signed):
     assert "AIza" not in str(saved) and saved["scenes"] == "6" and saved["auto_time"] == "06:45"
     assert signed.post("/api/settings", json={"auto_time": "7am"}).status_code == 400
     signed.post("/api/settings", json={"auto_daily": False})
+    voice = signed.post("/api/settings", json={"voice_in_video": False, "voice_style": ' A "deep" voice '}).json()
+    assert voice["voice_in_video"] == "0" and voice["voice_style"] == "A  deep  voice"
+    signed.post("/api/settings", json={"voice_in_video": True, "voice_style": "A warm British female voice"})
 
 
 def test_connection_check_picks_models_and_reports_plainly(signed):
@@ -80,6 +83,8 @@ def test_find_products_then_make_packs(signed):
     assert len(body["facts"]) == 2 and body["hashtags"][0] == "#ad" and body["hashtags"].count("#ad") == 1
     assert all("No on-screen text" in s["flow_prompt"] for s in body["scenes"])
     assert body["total_seconds"] == 8 and body["scenes"][0]["keep_seconds"] == 8 and pack["sources"]
+    assert body["voice_in_video"] is True
+    assert body["scenes"][0]["flow_prompt"].endswith('A warm British female voice says off-screen: "Dark evenings made this room feel flat."')
 
 
 def test_longer_videos_are_still_possible(signed):
@@ -89,6 +94,7 @@ def test_longer_videos_are_still_possible(signed):
     _finish(signed, again["job_id"])
     body = signed.get(f"/api/packs/{pack_id}").json()["pack"]
     assert len(body["scenes"]) == 4 and body["total_seconds"] == 16
+    assert body["voice_in_video"] is False and all(sc["flow_prompt"].endswith("no speech, no music.") for sc in body["scenes"])
     signed.post("/api/settings", json={"scenes": 1})
 
 

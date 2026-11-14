@@ -132,16 +132,27 @@ Return one JSON object exactly in this shape:
   "claims_to_avoid": ["things she must not say about this product"]
 }}"""
 
-FLOW_ENDING = 'End every prompt with: "No on-screen text, no captions, no logos. Natural room sound only, no speech, no music."'
+FLOW_ENDING = ('End every prompt with: "No on-screen text, no captions, no subtitles, no logos." '
+               "Do not describe sound, speech or music in the prompt: the audio line is added to it automatically.")
 
 
-def video_rules(scenes: int, clip_seconds: int) -> dict:
+def video_rules(scenes: int, clip_seconds: int, voice_in_video: bool = False) -> dict:
     """The parts of the pack prompt that differ between one clip and several."""
     if scenes <= 1:
+        words = max(10, int(clip_seconds * 2.5))
+        if voice_in_video:
+            after = ("Flow also speaks the voiceover inside the clip, so the video comes out with its voice already on it. "
+                     "She then adds the on-screen text in TikTok and posts it with the product tagged.")
+            voice = (f'- "voiceover" is the narrator\'s line that is spoken inside the {clip_seconds}-second video: one or two natural '
+                     f"sentences, at most {words} words, saying what the product does for the buyer. Plain words that are easy "
+                     "to say aloud. No quotation marks, no hashtags, no emojis, no prices.")
+        else:
+            after = "She then adds on-screen text and a sound or voiceover in TikTok and posts it with the product tagged."
+            voice = (f'- "voiceover" is the whole spoken script for the {clip_seconds}-second video: at most {words} words.')
         return {
             "how_made": (
                 f"- She generates ONE clip of {clip_seconds} seconds in Google Flow (Veo) from ONE prompt. That single clip "
-                "is the whole video. She then adds on-screen text and a sound or voiceover in TikTok and posts it with the product tagged.\n"
+                f"is the whole video. {after}\n"
                 '- Write exactly 1 scene, with "keep_seconds" set to ' + str(clip_seconds) + "."),
             "prompt_rule": (
                 f'- The "flow_prompt" is one complete prompt for one continuous vertical 9:16 shot of {clip_seconds} seconds with a '
@@ -149,9 +160,7 @@ def video_rules(scenes: int, clip_seconds: int) -> dict:
                 "the product in use, the last 2 seconds show the result. One location, one camera move, no cuts. Describe the product "
                 "precisely (colour, shape, material, size), the action, the setting, the camera movement and the lighting. "
                 'Ask for "shot on a phone, handheld, natural light". ' + FLOW_ENDING),
-            "voice_rule": (
-                f'- "voiceover" is the whole spoken script for the {clip_seconds}-second video: at most '
-                f"{max(10, int(clip_seconds * 2.5))} words."),
+            "voice_rule": voice,
         }
     return {
         "how_made": (

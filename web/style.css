@@ -207,7 +207,7 @@ dl.facts dd { margin: 0; color: var(--ink-soft); }
 .line { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; font-size: 15px; }
 .line span { color: var(--ink-soft); display: block; font-size: 13px; }
 
-.checks { list-style: none; margin: 0; padding: 0; }
+.checks { list-style: none; margin: 4px 0 0; padding: 0; }
 .checks li { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1.5px solid var(--line); }
 .checks li:last-child { border-bottom: 0; }
 .checks input { width: 24px; height: 24px; accent-color: var(--rasp); margin: 0; }

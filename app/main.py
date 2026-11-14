@@ -132,6 +132,8 @@ class SettingsIn(BaseModel):
     auto_daily: bool | None = None
     auto_time: str | None = None
     account_notes: str | None = Field(default=None, max_length=2000)
+    voice_in_video: bool | None = None
+    voice_style: str | None = Field(default=None, max_length=80)
 
 
 @app.post("/api/settings", dependencies=[Depends(signed_in)])
@@ -159,6 +161,10 @@ def write_settings(body: SettingsIn):
         values["auto_time"] = body.auto_time
     if body.account_notes is not None:
         values["account_notes"] = body.account_notes.strip()
+    if body.voice_in_video is not None:
+        values["voice_in_video"] = "1" if body.voice_in_video else "0"
+    if body.voice_style is not None:
+        values["voice_style"] = re.sub(r'["\n\r]', " ", body.voice_style).strip() or config.DEFAULT_SETTINGS["voice_style"]
     db.set_settings(values)
     return _public_settings(db.get_settings())
 

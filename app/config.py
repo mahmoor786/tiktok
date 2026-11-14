@@ -106,6 +106,8 @@ DEFAULT_SETTINGS = {
     "search_provider": "auto",  # auto | tavily | gemini
     "clip_seconds": "8",
     "scenes": "1",          # 1 = one prompt, one clip, which is the whole video
+    "voice_in_video": "1",   # Flow speaks the voiceover inside the clip (one-prompt videos only)
+    "voice_style": "A warm British female voice",
     "default_category": "home",
     "auto_daily": "0",
     "auto_time": "07:30",

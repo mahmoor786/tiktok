@@ -12,7 +12,7 @@ She makes the video in Flow and posts it herself. Trendpack does the research an
 4. Open each pack, copy the prompt into Flow, make the 8-second clip, post on TikTok and tag the product.
 5. A few days later, type in the views and sales. Later research learns from them.
 
-By default one pack is one prompt and one clip, which is the whole video. For longer videos made of several clips, raise **Prompts per video** in Settings.
+By default one pack is one prompt and one clip, which is the whole video, and the prompt tells Flow to speak the voiceover inside the clip (switch this off in Settings to get silent clips and add the voice in TikTok instead). For longer videos made of several clips, raise **Prompts per video** in Settings.
 
 ## What keeps it honest
 

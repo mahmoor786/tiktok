@@ -15,7 +15,13 @@ from .search import Evidence, Researcher, SearchError, clean_text
 
 PRODUCT_COUNT = 10
 MIN_SOURCED = 3  # facts + buyer insights needed before a pack counts as trustworthy
-FLOW_SUFFIX = "No on-screen text, no captions, no logos. Natural room sound only, no speech, no music."
+FLOW_SUFFIX = "No on-screen text, no captions, no subtitles, no logos."
+AUDIO_SILENT = "Natural room sound only, no speech, no music."
+AUDIO_VOICE = 'Natural room sound, no music. {voice} says off-screen: "{line}"'
+DEFAULT_VOICE = "A warm British female voice"
+# Audio wording the model may have written itself; it is replaced by one of the two lines above.
+_AUDIO_LEFTOVERS = re.compile(
+    r"\s*(Natural room sound[^.]*\.|No speech[^.]*\.|No music[^.]*\.|No dialogue[^.]*\.|No voice-?over[^.]*\.)", re.I)
 GENERIC_TITLES = ("tiktok shop", "tiktok", "tiktok - make your day", "amazon.co.uk", "amazon", "just a moment",
                   "access denied", "robot check", "security check", "page not found")
 
@@ -216,6 +222,7 @@ def clean_pack(raw, valid: set[int], settings: dict, fallback_name: str) -> dict
         flow = _s(scene.get("flow_prompt"), 1800)
         if not flow:
             continue
+        flow = _AUDIO_LEFTOVERS.sub("", flow).strip()
         if "no on-screen text" not in flow.lower():
             flow = flow.rstrip(". ") + ". " + FLOW_SUFFIX
         try:
@@ -228,6 +235,17 @@ def clean_pack(raw, valid: set[int], settings: dict, fallback_name: str) -> dict
     scenes = scenes[:wanted]  # never more clips than she asked for
     if wanted == 1 and scenes:
         scenes[0]["keep_seconds"] = clip  # one prompt, one clip: the clip is the whole video
+    # Audio line. With one clip, Flow can speak the voiceover itself, so it goes into the prompt.
+    spoken = wanted == 1 and str(settings.get("voice_in_video", "0")) == "1"
+    voice = _s(settings.get("voice_style"), 80).replace('"', "").rstrip(". ") or DEFAULT_VOICE
+    voice_in_video = False
+    for scene in scenes:
+        line = scene["voiceover"].replace('"', "'").strip()
+        if spoken and line:
+            scene["flow_prompt"] += " " + AUDIO_VOICE.format(voice=voice, line=line)
+            voice_in_video = True
+        else:
+            scene["flow_prompt"] += " " + AUDIO_SILENT
 
     tags, seen = [], set()
     for tag in raw.get("hashtags") if isinstance(raw.get("hashtags"), list) else []:
@@ -260,6 +278,7 @@ def clean_pack(raw, valid: set[int], settings: dict, fallback_name: str) -> dict
         "reference_image_tip": _s(raw.get("reference_image_tip"), 300),
         "claims_to_avoid": [_s(c, 200) for c in (raw.get("claims_to_avoid") if isinstance(raw.get("claims_to_avoid"), list) else []) if _s(c)][:6],
         "total_seconds": sum(s["keep_seconds"] for s in scenes),
+        "voice_in_video": voice_in_video,
     }
 
 
@@ -342,7 +361,8 @@ def make_pack(settings: dict, pack_id: int, progress, *, force: bool = False) ->
     raw = llm.generate_json(prompts.PACK.format(
         today=config.uk_now().strftime("%A %d %B %Y"), name=name, product_context=context,
         account=settings["account_notes"] or "Nothing noted yet.", learning=learning_summary(),
-        evidence=evidence.text(), **prompts.video_rules(int(settings["scenes"]), int(settings["clip_seconds"]))),
+        evidence=evidence.text(),
+        **prompts.video_rules(int(settings["scenes"]), int(settings["clip_seconds"]), settings["voice_in_video"] == "1")),
         system=prompts.SYSTEM)
     result = clean_pack(raw, evidence.valid_ids(), settings, name)
 

@@ -155,7 +155,9 @@ def test_clean_pack_enforces_sources_ad_tag_and_flow_rules():
     pack = pipeline.clean_pack(raw, {1}, {"clip_seconds": "8"}, "Fallback")
     assert [f["text"] for f in pack["facts"]] == ["Has a USB plug"] and pack["buyer_insights"] == []
     assert [h["label"] for h in pack["hooks"]] == ["A", "B"]
-    assert len(pack["scenes"]) == 2 and pack["scenes"][0]["flow_prompt"].endswith(pipeline.FLOW_SUFFIX)
+    assert len(pack["scenes"]) == 2
+    assert pack["scenes"][0]["flow_prompt"] == "A lamp on a table. " + pipeline.FLOW_SUFFIX + " " + pipeline.AUDIO_SILENT
+    assert pack["scenes"][1]["flow_prompt"] == "Close up. No on-screen text. " + pipeline.AUDIO_SILENT and not pack["voice_in_video"]
     assert pack["scenes"][1]["keep_seconds"] == 8 and pack["scenes"][1]["n"] == 2
     assert pack["hashtags"] == ["#ad", "#cosyhome", "#Lamp"]
     assert pack["caption_full"] == "Nice lamp\n\n#ad #cosyhome #Lamp"
@@ -174,3 +176,34 @@ def test_pack_prompt_wording_matches_the_number_of_prompts():
     assert "Write 4 scenes" in many["how_made"] and "every scene" in many["prompt_rule"]
     text = prompts.PACK.format(today="t", name="n", product_context="", account="", learning="", evidence="", **one)
     assert "{" not in text.split("Return one JSON object")[0]
+
+
+def test_voiceover_is_written_into_the_flow_prompt():
+    raw = {"scenes": [{
+        "flow_prompt": "0-2 seconds: a press on a tray. No on-screen text, no captions, no logos. Natural room sound only, no speech, no music.",
+        "voiceover": 'Make "holiday" cookies in seconds.'}]}
+    settings = {"clip_seconds": "8", "scenes": "1", "voice_in_video": "1", "voice_style": "A calm Scottish male voice."}
+    pack = pipeline.clean_pack(raw, set(), settings, "Press")
+    prompt = pack["scenes"][0]["flow_prompt"]
+    assert prompt == ("0-2 seconds: a press on a tray. No on-screen text, no captions, no logos. Natural room sound, no music. "
+                      "A calm Scottish male voice says off-screen: \"Make 'holiday' cookies in seconds.\"")
+    assert pack["voice_in_video"] is True and prompt.count("Natural room sound") == 1 and "no speech" not in prompt
+
+
+def test_voice_setting_falls_back_to_a_silent_clip():
+    scene = {"flow_prompt": "A lamp on a table", "voiceover": "It glows."}
+    off = pipeline.clean_pack({"scenes": [dict(scene)]}, set(), {"scenes": "1", "voice_in_video": "0"}, "Lamp")
+    no_line = pipeline.clean_pack({"scenes": [{"flow_prompt": "A lamp"}]}, set(), {"scenes": "1", "voice_in_video": "1"}, "Lamp")
+    many = pipeline.clean_pack({"scenes": [dict(scene), dict(scene)]}, set(), {"scenes": "2", "voice_in_video": "1"}, "Lamp")
+    default_voice = pipeline.clean_pack({"scenes": [dict(scene)]}, set(), {"scenes": "1", "voice_in_video": "1"}, "Lamp")
+    for pack in (off, no_line, many):
+        assert not pack["voice_in_video"] and all(s["flow_prompt"].endswith(pipeline.AUDIO_SILENT) for s in pack["scenes"])
+    assert default_voice["scenes"][0]["flow_prompt"].endswith('A warm British female voice says off-screen: "It glows."')
+
+
+def test_pack_prompt_tells_the_model_when_flow_speaks_the_voiceover():
+    from app import prompts
+    spoken, silent = prompts.video_rules(1, 8, True), prompts.video_rules(1, 8, False)
+    assert "spoken inside" in spoken["voice_rule"] and "20 words" in spoken["voice_rule"]
+    assert "voice already on it" in spoken["how_made"] and "voiceover in TikTok" in silent["how_made"]
+    assert "added to it automatically" in spoken["prompt_rule"]

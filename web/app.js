@@ -449,74 +449,78 @@ async function renderPack(id) {
     nodes.push(h('div', { class: 'note' }, h('p', {}, 'Little checked data was found for this product. Compare every detail with the product page before you post.')));
   }
 
-  if (body.format && body.format.name) {
-    nodes.push(h('div', { class: 'block' }, h('h3', {}, `Format: ${body.format.name}`),
-      h('p', { class: 'soft' }, body.format.why, ' ', sourceLinks(body.format.source_ids, sources))));
-  }
-  if (body.reference_image_tip) {
-    nodes.push(h('div', { class: 'note good' }, h('h3', {}, 'First, add the product photo in Flow'), h('p', {}, body.reference_image_tip)));
-  }
-
-  // hooks
-  const hookNodes = [];
-  if (body.hooks && body.hooks.length) {
-    hookNodes.push(h('h2', {}, 'Two opening texts to test'),
-      h('p', { class: 'soft small' }, 'Post one version with each and keep whichever gets more views.'),
-      h('div', { class: 'hooks' }, body.hooks.map((hook) => h('div', { class: 'block hook' },
-        h('span', { class: 'ab', 'aria-hidden': 'true' }, hook.label),
-        h('div', { class: 'copyrow' }, h('span', { class: 'label' }, `Opening ${hook.label}: text on screen`), copyButton(hook.on_screen_text)),
-        h('p', { class: 'said' }, hook.on_screen_text),
-        hook.voiceover && h('p', {}, h('span', { class: 'soft' }, 'Voiceover: '), hook.voiceover),
-        hook.why && h('p', { class: 'soft small' }, hook.why)))));
-  }
-
-  // shot list
-  let at = 0;
-  const shots = (body.scenes || []).map((scene) => {
-    const from = at;
-    at += scene.keep_seconds;
-    return h('li', { class: 'shot' },
-      h('div', { class: 'time' }, h('b', {}, timecode(from))),
-      h('div', { class: 'card' },
-        h('p', { class: 'goal' }, `Scene ${scene.n}: ${scene.goal}`),
-        h('div', { class: 'block' },
-          h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Paste into Flow'), copyButton(scene.flow_prompt, 'Copy prompt')),
-          h('p', { class: 'prompt' }, scene.flow_prompt)),
-        h('div', { class: 'extra' },
-          scene.on_screen_text && h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Text on screen'), scene.on_screen_text), copyButton(scene.on_screen_text)),
-          scene.voiceover && h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Voiceover'), scene.voiceover), copyButton(scene.voiceover)),
-          h('p', { class: 'soft small' }, `Keep the best ${scene.keep_seconds} seconds of this clip.`))));
-  });
   const single = (body.scenes || []).length === 1;
-  if (!single) nodes.push(hookNodes);
+  const spoken = Boolean(body.voice_in_video);
+
+  // Step 1: Flow
+  nodes.push(h('h2', {}, single ? 'Step 1: Make the video in Flow' : 'Step 1: Make the clips in Flow'));
+  if (body.reference_image_tip) {
+    nodes.push(h('div', { class: 'note good' }, h('h3', {}, 'Add the product photo first'), h('p', {}, body.reference_image_tip)));
+  }
   if (single) {
     // One prompt, one clip: the clip is the whole video.
     const scene = body.scenes[0];
-    nodes.push(h('h2', {}, `Your Flow prompt, one ${scene.keep_seconds}-second video`),
+    nodes.push(
       h('div', { class: 'block' },
-        h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Paste into Flow'), copyButton(scene.flow_prompt, 'Copy prompt')),
+        h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Then paste this into Flow'), copyButton(scene.flow_prompt, 'Copy prompt')),
         h('p', { class: 'prompt' }, scene.flow_prompt)),
-      h('div', { class: 'extra' },
-        scene.voiceover && h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Voiceover, for TikTok text-to-speech'), scene.voiceover), copyButton(scene.voiceover))),
-      hookNodes);
+      h('p', { class: 'soft small' }, `It makes one ${scene.keep_seconds}-second video. That clip is the whole video.`));
+    if (spoken) {
+      nodes.push(h('div', { class: 'block' }, h('h3', {}, 'The voice is already in the video'),
+        h('p', {}, `Flow says: "${scene.voiceover}"`),
+        h('p', { class: 'soft small' }, 'Nothing to add. If the clip comes out silent, pick a Flow model that makes sound and generate it again.')));
+    } else if (scene.voiceover) {
+      nodes.push(h('div', { class: 'extra' },
+        h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Voiceover. In TikTok, add it as text and turn on text-to-speech'), scene.voiceover), copyButton(scene.voiceover))));
+    }
   } else {
-    nodes.push(h('h2', {}, `Shot list, about ${body.total_seconds} seconds`), h('ol', { class: 'shots' }, shots));
+    let at = 0;
+    const shots = (body.scenes || []).map((scene) => {
+      const from = at;
+      at += scene.keep_seconds;
+      return h('li', { class: 'shot' },
+        h('div', { class: 'time' }, h('b', {}, timecode(from))),
+        h('div', { class: 'card' },
+          h('p', { class: 'goal' }, `Scene ${scene.n}: ${scene.goal}`),
+          h('div', { class: 'block' },
+            h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Paste into Flow'), copyButton(scene.flow_prompt, 'Copy prompt')),
+            h('p', { class: 'prompt' }, scene.flow_prompt)),
+          h('div', { class: 'extra' },
+            scene.on_screen_text && h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Text on screen'), scene.on_screen_text), copyButton(scene.on_screen_text)),
+            scene.voiceover && h('div', { class: 'line' }, h('div', {}, h('span', {}, 'Voiceover'), scene.voiceover), copyButton(scene.voiceover)),
+            h('p', { class: 'soft small' }, `Keep the best ${scene.keep_seconds} seconds of this clip.`))));
+    });
+    nodes.push(h('p', { class: 'soft small' }, `One clip per scene, about ${body.total_seconds} seconds once joined.`), h('ol', { class: 'shots' }, shots));
+    if (body.voiceover_full) {
+      nodes.push(h('div', { class: 'block' },
+        h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Full voiceover, for TikTok text-to-speech'), copyButton(body.voiceover_full)),
+        h('p', {}, body.voiceover_full)));
+    }
   }
 
-  if (body.voiceover_full && !single) {
-    nodes.push(h('h2', {}, 'Full voiceover'), h('div', { class: 'block' },
-      h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'For TikTok text-to-speech'), copyButton(body.voiceover_full)),
-      h('p', {}, body.voiceover_full)));
+  // Step 2: opening text
+  if (body.hooks && body.hooks.length) {
+    nodes.push(h('h2', {}, 'Step 2: Add the opening text in TikTok'),
+      h('p', { class: 'soft small' }, 'This is the big text on the video for the first seconds, to stop people scrolling. In TikTok tap Text and paste one. Post once with A and once with B, then keep whichever gets more views.'),
+      h('div', { class: 'hooks' }, body.hooks.map((hook) => h('div', { class: 'block hook' },
+        h('span', { class: 'ab', 'aria-hidden': 'true' }, hook.label),
+        h('div', { class: 'copyrow' }, h('span', { class: 'label' }, `Opening ${hook.label}`), copyButton(hook.on_screen_text)),
+        h('p', { class: 'said' }, hook.on_screen_text),
+        !spoken && hook.voiceover && h('p', {}, h('span', { class: 'soft' }, 'Voiceover: '), hook.voiceover),
+        hook.why && h('p', { class: 'soft small' }, hook.why)))));
   }
 
-  nodes.push(h('h2', {}, 'Caption and hashtags'), h('div', { class: 'block' },
-    h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Ready to paste'), copyButton(body.caption_full)),
+  // Step 3: caption
+  nodes.push(h('h2', {}, 'Step 3: Paste the caption'), h('div', { class: 'block' },
+    h('div', { class: 'copyrow' }, h('span', { class: 'label' }, 'Caption and hashtags'), copyButton(body.caption_full)),
     h('p', { class: 'prompt' }, body.caption_full)));
 
+  // Step 4: post
+  nodes.push(h('h2', {}, 'Step 4: Post it'));
   const posting = [];
   if (body.best_time_uk && body.best_time_uk.window) posting.push(h('p', {}, h('b', {}, `Post ${body.best_time_uk.window} (UK time). `), body.best_time_uk.why));
-  if (body.sound) posting.push(h('p', {}, h('b', {}, 'Sound: '), body.sound));
-  if (posting.length) nodes.push(h('h2', {}, 'When to post'), h('div', { class: 'block' }, posting));
+  if (body.sound) posting.push(h('p', {}, h('b', {}, 'Sound: '), spoken ? 'keep any music quiet so the voice stays clear. ' : '', body.sound));
+  if (posting.length) nodes.push(h('div', { class: 'block' }, posting));
 
   const search = pack.product && pack.product.marketplace_search || body.product.name;
   const checks = [
@@ -525,7 +529,7 @@ async function renderPack(id) {
     'Keep #ad in the caption, or turn on "Disclose commercial content".',
     'Check the price and every claim against the product page.',
   ];
-  nodes.push(h('h2', {}, 'Before you post'), h('ul', { class: 'checks' }, checks.map((text, index) =>
+  nodes.push(h('ul', { class: 'checks' }, checks.map((text, index) =>
     h('li', {}, h('input', { type: 'checkbox', id: `chk${index}` }), h('label', { for: `chk${index}` }, text)))));
 
   if (body.claims_to_avoid && body.claims_to_avoid.length) {
@@ -537,6 +541,10 @@ async function renderPack(id) {
       h('p', { class: 'soft small' }, 'Everything in the script comes from these. Tap a source to check it.'));
     if (body.facts.length) nodes.push(h('h3', {}, 'Product facts'), sourcedList(body.facts, sources));
     if (body.buyer_insights.length) nodes.push(h('h3', {}, 'What buyers say'), sourcedList(body.buyer_insights, sources));
+  }
+  if (body.format && body.format.name) {
+    nodes.push(h('h3', {}, `Why this video style: ${body.format.name}`),
+      h('p', { class: 'soft' }, body.format.why, ' ', sourceLinks(body.format.source_ids, sources)));
   }
 
   // results
@@ -628,6 +636,8 @@ async function renderSettings(report) {
 
   const clip = h('input', { type: 'number', id: 'clip', min: 4, max: 12, value: s.clip_seconds, inputmode: 'numeric' });
   const scenes = h('input', { type: 'number', id: 'scenes', min: 1, max: 6, value: s.scenes, inputmode: 'numeric' });
+  const voiceIn = h('input', { type: 'checkbox', id: 'voicein', checked: s.voice_in_video === '1' });
+  const voiceStyle = h('input', { type: 'text', id: 'vstyle', maxlength: 80, value: s.voice_style });
   const auto = h('input', { type: 'checkbox', id: 'auto', checked: s.auto_daily === '1' });
   const autoTime = h('input', { type: 'time', id: 'atime', value: s.auto_time });
   const cats = (appState && appState.categories) || [];
@@ -641,7 +651,8 @@ async function renderSettings(report) {
       await api('/api/settings', { method: 'POST', body: {
         clip_seconds: Number(clip.value) || 8, scenes: Number(scenes.value) || 1,
         auto_daily: auto.checked, auto_time: autoTime.value || '07:30',
-        default_category: autoCat.value, account_notes: notes.value } });
+        default_category: autoCat.value, account_notes: notes.value,
+        voice_in_video: voiceIn.checked, voice_style: voiceStyle.value } });
       toast('Settings saved');
     } catch (err) { toast(err.message); }
     done();
@@ -658,6 +669,8 @@ async function renderSettings(report) {
       h('div', { class: 'field' }, h('label', { for: 'clip' }, 'Seconds per Flow clip'), clip),
       h('div', { class: 'field' }, h('label', { for: 'scenes' }, 'Prompts per video'), scenes)),
     h('p', { class: 'soft small' }, '1 means one prompt and one clip, which is the whole video. A higher number gives a longer video made of several clips that she joins herself.'),
+    h('div', { class: 'toggle' }, voiceIn, h('label', { for: 'voicein' }, 'Flow speaks the voiceover in the video', h('span', { class: 'hint' }, 'The prompt includes the spoken line, so there is nothing to add in TikTok. Works with one prompt per video.'))),
+    h('div', { class: 'field' }, h('label', { for: 'vstyle' }, 'Voice', h('span', { class: 'hint' }, 'How the narrator should sound')), voiceStyle),
     h('h2', {}, 'Daily search'),
     h('div', { class: 'toggle' }, auto, h('label', { for: 'auto' }, 'Find 10 new products every morning', h('span', { class: 'hint' }, 'They wait under Find until you pick.'))),
     h('div', { class: 'two' },
